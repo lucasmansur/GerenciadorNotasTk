@@ -1,28 +1,20 @@
+
 from tkinter import *
 from tkinter import messagebox as msgb
 from tkinter import ttk as ttk
 import sqlite3
 
 
-
-root = Tk()
-subject = StringVar()
-grade = DoubleVar()
-grade2 = DoubleVar()
-average = DoubleVar()
-id = None
-insertWindow = None
-updateWindow = None
-
 def database():
-    conn = sqlite3.connect('./av2/Notas.db')
+    conn = sqlite3.connect('./Notas.db')
     cur = conn.cursor()
     conn.execute("""CREATE TABLE IF NOT EXISTS notas(
                     idnota INTEGER PRIMARY KEY AUTOINCREMENT,
                     materia TEXT NOT NULL,
                     nota DOUBLE NOT NULL,
                     nota2 DOUBLE NOT NULL,
-                    media DOUBLE NOT NULL)""")
+                    media DOUBLE NOT NULL,
+                    resultado TEXT NOT NULL)""")
     cur.execute('SELECT * FROM notas ORDER BY materia')
     fetch = cur.fetchall()
     for data in fetch:
@@ -31,10 +23,10 @@ def database():
     conn.close()
 
 
-def insertNota(materia, nota, nota2, media):
-    conn = sqlite3.connect('./av2/Notas.db')
+def insertNota(materia, nota, nota2, media, resultado):
+    conn = sqlite3.connect('./Notas.db')
     cur = conn.cursor()
-    conn.execute('INSERT INTO notas (materia, nota, nota2, media) VALUES(?, ?, ?, ?)',(materia, nota, nota2, media))
+    conn.execute('INSERT INTO notas (materia, nota, nota2, media, resultado) VALUES(?, ?, ?, ?, ?)',(materia, nota, nota2, media, resultado))
     conn.commit()
     cur.execute('SELECT * FROM notas ORDER BY materia')
     fetch = cur.fetchall()
@@ -44,10 +36,10 @@ def insertNota(materia, nota, nota2, media):
     conn.close()
 
 
-def updateNota(materia, nota, nota2, media, idnota):
-    conn = sqlite3.connect('./av2/Notas.db')
+def updateNota(materia, nota, nota2, media, resultado, idnota):
+    conn = sqlite3.connect('./Notas.db')
     cur = conn.cursor()
-    conn.execute('UPDATE notas SET materia = ?, nota = ?, nota2 = ?, media = ? WHERE idnota = ?',(materia, nota, nota2, media, idnota))
+    conn.execute('UPDATE notas SET materia = ?, nota = ?, nota2 = ?, media = ?, resultado = ? WHERE idnota = ?',(materia, nota, nota2, media, resultado, idnota))
     conn.commit()
     cur.execute('SELECT * FROM notas ORDER BY materia')
     fetch = cur.fetchall()
@@ -68,7 +60,7 @@ def deleteData():
     if not tree.selection():
         msgb.showwarning("Nenhum item selecionado...", "Porfavor selecione o item que deseja deletar!", icon="warning")
     else:
-        ask = msgb.askquestion("Tem certeza?", "Tem certeza que quer deletar esse item? Será irreversível!", icon="warning")
+        ask = msgb.askquestion("Tem certeza?", "Tem certeza que quer deletar esse item? Isso é irreversível!", icon="warning")
         if ask == 'yes':            
             selectItem = tree.focus()
             content = (tree.item(selectItem))
@@ -80,11 +72,16 @@ def deleteData():
 def updateData():
     tree.delete(*tree.get_children())
     average.set((grade.get()+grade2.get())/2)
-    updateNota(subject.get(), grade.get(), grade2.get(), average.get(), id)
+    if average.get() >= 6:
+        result.set("Aprovado")
+    else:
+        result.set("Reprovado")
+    updateNota(subject.get(), grade.get(), grade2.get(), average.get(), result.get(), id)
     subject.set("")
     grade.set("")
     grade2.set("")
     average.set("")
+    result.set("")
     updateWindow.destroy()
 
 def onSelected(event):
@@ -97,6 +94,7 @@ def onSelected(event):
     grade.set(selectedItem[2])
     grade2.set(selectedItem[3])
     average.set(selectedItem[4])
+    result.set(selectedItem[5])
     updateWindow = Toplevel()
     updateWindow.title("Atualizar notas")
     width = 480
@@ -113,7 +111,7 @@ def onSelected(event):
     registerContact.pack(side=TOP, pady=10)
     lblTitle = Label(registerTitle, text="Atualizar Notas",font=("consolas", 25), bg="#7cbb63", width=300)
     lblTitle.pack(fill=X)
-    lblsubject = Label(registerContact, text="Nome da Materia", font=("consolas", 11))
+    lblsubject = Label(registerContact, text="Insira a Materia", font=("consolas", 11))
     lblsubject.grid(row=0, sticky=W)
     lblNota = Label(registerContact,text="Primeira Avaliacao", font=("consolas", 11))
     lblNota.grid(row=1, sticky=W)
@@ -125,21 +123,44 @@ def onSelected(event):
     notaEntry.grid(row=1, column=1)
     nota2Entry = Entry(registerContact, textvariable=grade2,font=('arial', 12))
     nota2Entry.grid(row=2, column=1)
-    bttnInsert = Button(registerContact, text="Atualizar",width=50, command=updateData)
+    bttnInsert = Button(registerContact, text="Atualizar", bg="#c98654", width=50, command=validateDataUpdate)
     bttnInsert.grid(row=4, columnspan=2, pady=10)
     insertWindow.mainloop()
 
+def validateData():
+    try:
+        grade.get()
+        grade2.get()
+    except:
+        msgb.showwarning("Tipo inválido!", "Por favor, insira um tipo válido!")
+    else:
+        submitData()
+
+def validateDataUpdate():
+    try:
+        grade.get()
+        grade2.get()
+    except:
+        msgb.showwarning("Tipo inválido!", "Por favor, insira um tipo válido!")        
+    else:
+        updateData()
+
 def submitData():
     if grade.get() == None or subject.get() == "" or grade2.get() == None:
-        result = msgb.showwarning("Campo vazio!", "Você esqueceu de preencher algum campo.", icon="warning")
+        resultado = msgb.showwarning("Campo vazio!", "Você esqueceu de preencher algum campo. Porfavor, verifique os campos!", icon="warning")
     else:
         tree.delete(*tree.get_children())
         average.set((grade.get()+grade2.get())/2)
-        insertNota(subject.get(), grade.get(), grade2.get(), average.get())
+        if average.get() >= 6:
+            result.set("Aprovado")
+        else:
+            result.set("Reprovado")
+        insertNota(subject.get(), grade.get(), grade2.get(), average.get(), result.get())
         subject.set("")
         grade.set("")
         grade2.set("")
         average.set("")
+        result.set("")
 
 def insertData():
     subject.set("")
@@ -161,9 +182,9 @@ def insertData():
     registerContact.pack(side=TOP, pady=10)
     lblTitle = Label(registerTitle, text="Insira as Notas",font=("consolas", 25), bg="#7cbb63", width=300)
     lblTitle.pack(fill=X)
-    lblsubject = Label(registerContact, text="Nome da Materia", font=("consolas", 11))
+    lblsubject = Label(registerContact, text="Insira a Materia", font=("consolas", 11))
     lblsubject.grid(row=0, sticky=W)
-    lblNota = Label(registerContact, text="Primeira Avaliacao",font=("consolas", 11))
+    lblNota = Label(registerContact, text="Primeira Avalicao",font=("consolas", 11))
     lblNota.grid(row=1, sticky=W)
     lblNota2 = Label(registerContact, text="Segunda Avaliacao", font=("consolas", 11))
     lblNota2.grid(row=2, sticky=W)
@@ -173,10 +194,19 @@ def insertData():
     notaEntry.grid(row=1, column=1)
     nota2Entry = Entry(registerContact, textvariable=grade2, font=('arial', 12))
     nota2Entry.grid(row=2, column=1)
-    bttnInsert = Button(registerContact, text="Inserir",width=50, command=submitData)
+    bttnInsert = Button(registerContact, text="Inserir",bg="#acc954", width=50, command=validateData)
     bttnInsert.grid(row=4, columnspan=2, pady=10)
     insertWindow.mainloop()
 
+root = Tk()
+subject = StringVar()
+grade = DoubleVar()
+grade2 = DoubleVar()
+average = DoubleVar()
+result = StringVar()
+id = None
+insertWindow = None
+updateWindow = None
 root.title('Gerenciador de notas')
 width = 1024
 height = 600
@@ -189,7 +219,7 @@ root.config(bg='#26547C')
 root.resizable(0,0)
 top = Frame(root, width=1250, bd=1, relief=SOLID)
 top.pack(side=TOP)
-mid = Label(text="Gerenciador de Notas", font=("consolas", 25),  bg="#6666ff") 
+mid = Label(text="Gerenciador de Notas", font=("consolas", 25),  bg="#6666ff")
 mid.pack(side=TOP)
 midLeft = Frame(mid, width=250)
 midLeft.pack(side=LEFT)
@@ -201,13 +231,13 @@ bottom = Frame(root, width=500)
 bottom.pack(side=BOTTOM)
 tableMargim = Frame(root, width=1250)
 tableMargim.pack(side=TOP)
-bttn_add = Button(midLeft, text="Inserir", bg="OliveDrab1", command=insertData)
-bttn_add.pack()
-bttn_del = Button(midRight, text="Deletar", bg="orange red", command=deleteData)
-bttn_del.pack(side=RIGHT)
+bttnInsert = Button(midLeft, text="Inserir", bg="OliveDrab1", command=insertData)
+bttnInsert.pack()
+bttnDelete = Button(midRight, text="Deletar", bg="red", command=deleteData)
+bttnDelete.pack(side=RIGHT)
 scrollX = Scrollbar(tableMargim, orient=HORIZONTAL)
 scrollY = Scrollbar(tableMargim, orient=VERTICAL)
-tree = ttk.Treeview(tableMargim, columns=("ID", "MATERIA", "NOTA 1", "NOTA 2", "MEDIA"), height=400, selectmode="extended", yscrollcommand=scrollY.set, xscrollcommand=scrollX.set)
+tree = ttk.Treeview(tableMargim, columns=("ID", "MATERIA", "NOTA 1", "NOTA 2", "MEDIA", "RESULTADO"), height=400, selectmode="extended", yscrollcommand=scrollY.set, xscrollcommand=scrollX.set)
 scrollY.config(command=tree.yview)
 scrollY.pack(side=RIGHT, fill=Y)
 scrollX.config(command=tree.xview)
@@ -217,14 +247,14 @@ tree.heading("MATERIA", text="Materia", anchor=W)
 tree.heading("NOTA 1", text="AV1", anchor=W)
 tree.heading("NOTA 2", text="AV2", anchor=W)
 tree.heading("MEDIA", text="Media", anchor=W)
+tree.heading("RESULTADO", text="Estado", anchor=W)
 tree.column('#0', stretch=NO, minwidth=0, width=3)
-tree.column('#1', stretch=NO, minwidth=0, width=50)
-tree.column('#2', stretch=NO, minwidth=0, width=100)
-tree.column('#3', stretch=NO, minwidth=0, width=250)
+tree.column('#1', stretch=NO, minwidth=0, width=100)
+tree.column('#2', stretch=NO, minwidth=0, width=150)
+tree.column('#3', stretch=NO, minwidth=0, width=150)
 tree.column('#4', stretch=NO, minwidth=0, width=155)
+tree.column('#5', stretch=NO, minwidth=0, width=155)
 tree.pack()
 tree.bind('<Double-Button-1>', onSelected)
-
-if __name__ == '__main__':
-    database()
-    root.mainloop()
+database()
+root.mainloop()
